@@ -1,0 +1,40 @@
+
+.App-header {
+  background-color: linear-gradient(to right, #172233, #4c6376);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+/* src/App.css */
+
+/*
+  This targets the main scrollbar for the entire page in Webkit browsers 
+  (Chrome, Safari, new Edge).
+*/
+html::-webkit-scrollbar {
+  width: 10px; /* You can adjust this value */
+}
+
+html::-webkit-scrollbar-track {
+  @apply bg-slate-800; /* Using Tailwind's @apply to use your theme colors */
+}
+
+html::-webkit-scrollbar-thumb {
+  @apply bg-slate-600 rounded-full;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  @apply bg-[#a4f16c]; /* Your accent color */
+}
+
+/* This is for Firefox, which uses a different syntax.
+  It applies the styles to all scrollable elements, including the root.
+*/
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #475569 #1e293b; /* thumb-color track-color (slate-600, slate-800) */
+}
