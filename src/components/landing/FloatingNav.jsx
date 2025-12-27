@@ -53,7 +53,7 @@ const FloatingNav = ({ handleScroll }) => {
   return (
     <div
       ref={menuRef}
-           className={`fixed bottom-12 right-8 z-50 transition-all duration-300 transform-gpu ${
+           className={`fixed bottom-12 left-8 z-50 transition-all duration-300 transform-gpu ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'
       }`}
 

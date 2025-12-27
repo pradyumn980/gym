@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import os
 
 load_dotenv()
-from recommender import recommend_workout
+from recommender import recommend_workout, generate_weekly_plan
 from chatbot import chat_reply
 
 app = Flask(__name__)
@@ -46,5 +46,19 @@ def recommend():
 
     return jsonify(result)
 
+@app.route("/generate-weekly-plan", methods=["POST", "OPTIONS"])
+def generate_week():
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+
+    data = request.get_json(force=True)
+    history = data.get("history", [])
+    preferences = data.get("preferences", {}) # Extract preferences
+    
+    plan = generate_weekly_plan(history, preferences)
+    return jsonify(plan)
+
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
