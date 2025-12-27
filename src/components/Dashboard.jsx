@@ -14,6 +14,7 @@ import AddExerciseModal from './dashboard/AddExerciseModal';
 import PendingWorkoutPrompt from './dashboard/PendingWorkoutPrompt';
 import EditExerciseModal from './dashboard/EditExerciseModal';
 import DumbbellAnimation from './DumbbellAnimation';
+import { generateAndSaveRecommendation } from "../services/recommendationService";
 
 import pushUp from '../assets/push.png';
 import squats from '../assets/squats.png';
@@ -34,6 +35,7 @@ import box from '../assets/box.png';
 
 
 
+
 const WorkoutReminder = ({ days, onDismiss }) => {
   // Return nothing if there's no relevant data to show
   if (days === null || days < 0) {
@@ -42,6 +44,7 @@ const WorkoutReminder = ({ days, onDismiss }) => {
 
   // Handle pluralization for "day" vs "days"
   const dayText = days === 1 ? 'day' : 'days';
+
 
   return (
     <div className="relative bg-slate-800/50 p-6 mb-8 rounded-2xl flex items-start justify-between gap-4 shadow-lg border border-[#a4f16c] animate-fade-in-down">
@@ -95,7 +98,7 @@ const Dashboard = () => {
   const [workoutPlan, setWorkoutPlan] = useState(null);
   const [history, setHistory] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+  const [mlRecommendation, setMlRecommendation] = useState(null);
   const [isWorkoutActive, setIsWorkoutActive] = useState(false);
   const [activeWorkout, setActiveWorkout] = useState(null);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
@@ -131,7 +134,22 @@ const Dashboard = () => {
       fetchUserData();
     }
   }, [currentUser]);
-  
+  useEffect(() => {
+  if (!currentUser || history.length === 0) return;
+
+  const runMLRecommendation = async () => {
+    try {
+      const recommendation = await generateAndSaveRecommendation(history);
+      setMlRecommendation(recommendation);
+      console.log("🤖 AI Workout Recommendation:", recommendation);
+    } catch (error) {
+      console.error("ML Recommendation failed:", error);
+    }
+  };
+
+  runMLRecommendation();
+}, [currentUser, history]);
+
   // NEW: Check session storage on component mount to see if the reminder was already dismissed.
   useEffect(() => {
     const dismissed = sessionStorage.getItem('workoutReminderDismissed');
@@ -474,7 +492,9 @@ const Dashboard = () => {
               </div>
           );
       }
+      
   return (
+    
     <div className="relative min-h-screen bg-slate-900 text-white p-4 sm:p-8 overflow-hidden">
       
        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
@@ -503,6 +523,7 @@ const Dashboard = () => {
             />
           ))}
         </div>
+        
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
             <div className="w-1/2 h-1/2 bg-gradient-radial from-[#a4f16c]/10 to-transparent rounded-full blur-3xl" />
         </div>
@@ -516,7 +537,22 @@ const Dashboard = () => {
                 onDismiss={handleDismissReminder} 
             />
         )}
-      
+      {mlRecommendation && (
+  <div className="mb-6 p-4 rounded-xl bg-[#a4f16c]/10 border border-[#a4f16c]">
+    <h3 className="font-bold text-lg">🤖 AI Recommendation</h3>
+    <p className="text-slate-300">
+      Next workout:
+      <span className="text-white font-semibold">
+        {" "}{mlRecommendation.workout}
+      </span>
+      {" "}for{" "}
+      <span className="text-white font-semibold">
+        {mlRecommendation.duration} min
+      </span>
+    </p>
+  </div>
+)}
+
         <KpiCards kpis={kpis} />
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
           <WeeklyChart data={weeklyChartData} />
@@ -538,7 +574,8 @@ const Dashboard = () => {
         )}
         <ExerciseLibrary exercises={exerciseLibrary} onQuickStart={handleQuickStart} />
       </main>
-      
+     
+
       {isWorkoutActive && (
         <ActiveWorkout 
           workout={activeWorkout}

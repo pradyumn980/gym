@@ -10,6 +10,8 @@ import History from './components/History';
 import Profile from './components/Profile'; // <-- Import Profile
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
+import AIBotWidget from "./components/AIBotWidget";
+
 
 function App() {
   return (
@@ -48,6 +50,7 @@ function App() {
             />
           </Routes>
         </div>
+         <AIBotWidget history={[]} />
       </Router>
     </AuthProvider>
   );
