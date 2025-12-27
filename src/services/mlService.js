@@ -1,5 +1,5 @@
 export const getWorkoutRecommendation = async (history, level) => {
-  const res = await fetch("http://127.0.0.1:5000/recommend-workout", {
+  const res = await fetch("https://gym-ybl2.onrender.com/recommend-workout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ history, level }),
@@ -13,7 +13,7 @@ export const getWorkoutRecommendation = async (history, level) => {
 };
 
 export const getWeeklyPlan = async (history, preferences = {}) => {
-  const res = await fetch("http://127.0.0.1:5000/generate-weekly-plan", {
+  const res = await fetch("https://gym-ybl2.onrender.com/generate-weekly-plan", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ history, preferences }),

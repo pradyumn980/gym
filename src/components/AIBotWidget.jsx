@@ -37,7 +37,7 @@ export default function AIBotWidget({ history = [] }) {
     setIsLoading(true);
 
     try {
-      const res = await fetch("http://127.0.0.1:5000/chat", {
+      const res = await fetch("https://gym-ybl2.onrender.com/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -132,10 +132,9 @@ export default function AIBotWidget({ history = [] }) {
               <div
                 key={m.id}
                 className={`max-w-[88%] px-3.5 py-2.5 rounded-2xl whitespace-pre-line leading-relaxed
-                  ${
-                    m.from === "bot"
-                      ? "bg-slate-800/90 text-emerald-200 border border-slate-700/70 shadow-lg shadow-emerald-900/30"
-                      : "bg-[#a4f16c] text-black ml-auto shadow-lg shadow-lime-500/30"
+                  ${m.from === "bot"
+                    ? "bg-slate-800/90 text-emerald-200 border border-slate-700/70 shadow-lg shadow-emerald-900/30"
+                    : "bg-[#a4f16c] text-black ml-auto shadow-lg shadow-lime-500/30"
                   }`}
               >
                 {m.text}
