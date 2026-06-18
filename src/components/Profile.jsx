@@ -2,10 +2,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { EmailAuthProvider, reauthenticateWithCredential, updateEmail, updatePassword, updateProfile } from 'firebase/auth';
 import Header from './dashboard/Header';
-import { FaUser, FaLock, FaDumbbell, FaFire, FaExclamationTriangle, FaCalendarAlt } from 'react-icons/fa';
+import { FaUser, FaDumbbell, FaFire, FaExclamationTriangle, FaCalendarAlt } from 'react-icons/fa';
 import { motion, AnimatePresence, useInView, animate } from 'framer-motion';
 import { FiLoader } from 'react-icons/fi';
 
@@ -67,10 +67,15 @@ const Profile = () => {
     useEffect(() => {
         if (currentUser) {
             const fetchUserData = async () => {
-                const docRef = doc(db, 'users', currentUser.uid);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    setHistory(docSnap.data().history || []);
+                try {
+                    const docRef = doc(db, 'users', currentUser.uid);
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        setHistory(docSnap.data().history || []);
+                    }
+                } catch (err) {
+                    console.error("Error loading profile data:", err);
+                    showMessage('error', 'Firebase Error: ' + (err.message || 'Permission denied'));
                 }
             };
             fetchUserData();
@@ -105,7 +110,7 @@ const Profile = () => {
         try {
             await updateProfile(currentUser, { displayName: nameInput });
             const userDocRef = doc(db, 'users', currentUser.uid);
-            await updateDoc(userDocRef, { name: nameInput });
+            await setDoc(userDocRef, { name: nameInput }, { merge: true });
             showMessage('success', 'Name updated successfully!');
         } catch (error) {
             showMessage('error', 'Failed to update name.');
@@ -122,7 +127,7 @@ const Profile = () => {
             await handleReauthenticate(currentPassword);
             await updateEmail(currentUser, emailInput);
             const userDocRef = doc(db, 'users', currentUser.uid);
-            await updateDoc(userDocRef, { email: emailInput });
+            await setDoc(userDocRef, { email: emailInput }, { merge: true });
             showMessage('success', 'Email updated! Please log in again.');
             setTimeout(() => auth.signOut(), 2000);
         } catch(error) {

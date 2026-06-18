@@ -15,17 +15,26 @@ const History = () => {
     const navigate = useNavigate();
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [firebaseError, setFirebaseError] = useState(null);
 
     useEffect(() => {
         if (currentUser) {
             const fetchHistory = async () => {
-                const docRef = doc(db, 'users', currentUser.uid);
-                const docSnap = await getDoc(docRef);
-                // Reverse the history array to show the latest workout first
-                if (docSnap.exists() && docSnap.data().history) {
-                    setHistory(docSnap.data().history.reverse());
+                try {
+                    setLoading(true);
+                    setFirebaseError(null);
+                    const docRef = doc(db, 'users', currentUser.uid);
+                    const docSnap = await getDoc(docRef);
+                    // Reverse the history array to show the latest workout first
+                    if (docSnap.exists() && docSnap.data().history) {
+                        setHistory(docSnap.data().history.reverse());
+                    }
+                } catch (err) {
+                    console.error("Error loading history data:", err);
+                    setFirebaseError(err.message || String(err));
+                } finally {
+                    setLoading(false);
                 }
-                setLoading(false);
             };
             fetchHistory();
         }
@@ -64,6 +73,19 @@ const History = () => {
             </header>
 
             <main className="max-w-4xl mx-auto">
+                {firebaseError && (
+                    <div className="bg-red-500/20 border border-red-500 text-red-200 p-4 rounded-xl mb-6 text-sm">
+                        <p className="font-bold flex items-center gap-2">
+                            <span className="bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs font-black">!</span>
+                            Firebase Error:
+                        </p>
+                        <p className="mt-1 font-mono text-xs">{firebaseError}</p>
+                        <p className="mt-2 text-xs text-red-300/80">
+                            Please check your Firestore Database security rules. If you are using default Firebase Test Rules, they automatically expire after 30 days and will block all read and write queries.
+                        </p>
+                    </div>
+                )}
+
                 {history.length > 0 ? (
                     <div className="space-y-6">
                         {history.map((workout, index) => (

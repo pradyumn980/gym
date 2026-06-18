@@ -177,7 +177,7 @@ const Hero = ({ handleScroll }) => {
       <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-slate-900 to-transparent"></div>
 
       <div className="relative mb-20 z-10 w-full max-w-7xl mx-auto flex flex-col justify-between h-[90vh]">
-        <header id="page-header"className="flex justify-between items-center">
+        <header id="page-header" className="flex justify-between items-center">
           <div className="flex items-center gap-2">
             <SiFireship size={30} className="text-[#a4f16c]" />
             <h1 className="text-2xl font-bold">FITFLOW</h1>
@@ -190,7 +190,7 @@ const Hero = ({ handleScroll }) => {
                 <div className="hidden px-6 py-2 rounded-lg border-2 border-white hover:bg-slate-600 lg:flex items-center gap-6">
                   <button
                     onClick={() => navigate('/dashboard')}
-                    className="ffont-semibold hover:text-[#a4f16c] transition-colors"
+                    className="font-semibold hover:text-[#a4f16c] transition-colors"
                   >
                     Dashboard
                   </button>
@@ -247,10 +247,10 @@ const Hero = ({ handleScroll }) => {
 
           <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm md:max-w-md">
             <button
-              onClick={() => navigate('/signup')}
+              onClick={() => navigate(currentUser ? '/dashboard' : '/signup')}
               className="font-semibold text-slate-900 bg-[#a4f16c] hover:bg-[#8cd953] px-8 py-3 rounded-lg transition-colors w-full"
             >
-              Get Started
+              {currentUser ? 'Go to Dashboard' : 'Get Started'}
             </button>
             <button 
               onClick={() => handleScroll('contact')}

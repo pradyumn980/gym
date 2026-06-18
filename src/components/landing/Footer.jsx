@@ -1,9 +1,13 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { SiFireship } from 'react-icons/si';
 import { FaTwitter, FaInstagram, FaFacebookF } from 'react-icons/fa';
 
 // MODIFICATION: Accept handleScroll prop
 const Footer = ({ handleScroll }) => {
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const currentYear = new Date().getFullYear();
   
   // A helper component for consistent styling
@@ -37,6 +41,13 @@ const Footer = ({ handleScroll }) => {
             <ul className="mt-4 space-y-2">
               <li><ScrollButton id="features">Features</ScrollButton></li>
               <li><ScrollButton id="pricing">Pricing</ScrollButton></li>
+              {currentUser && (
+                <li>
+                  <button onClick={() => navigate('/dashboard')} className="text-left hover:text-white transition-colors">
+                    Dashboard
+                  </button>
+                </li>
+              )}
               <li><a href="#" className="hover:text-white">Updates</a></li>
             </ul>
           </div>

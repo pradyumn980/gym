@@ -1,14 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
+import { useAuth } from '../context/AuthContext';
 import AuthLayout from './AuthLayout';
 import { HiOutlineMail, HiOutlineLockClosed } from 'react-icons/hi';
 
 const LoginForm = () => {
+    const { currentUser } = useAuth();
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [error, setError] = useState('');
     const navigate = useNavigate();
+
+    useEffect(() => {
+        if (currentUser) {
+            navigate('/dashboard');
+        }
+    }, [currentUser, navigate]);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.id]: e.target.value });

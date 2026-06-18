@@ -1,8 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import ctaArm from '../../assets/cta-arm.png'; 
 
 const CTA = () => {
+    const { currentUser } = useAuth();
+    const navigate = useNavigate();
     const generatePeripheryParticles = (count, minSize, maxSize, opacityRange) => {
         const particles = [];
         for (let i = 0; i < count; i++) {
@@ -79,11 +83,12 @@ const CTA = () => {
                         </p>
                         <div className="mt-10">
                             <motion.button 
+                                onClick={() => navigate(currentUser ? '/dashboard' : '/signup')}
                                 className="font-semibold text-slate-900 bg-[#a4f16c] px-10 py-4 rounded-lg text-xl shadow-[0_0_30px_rgba(164,241,108,0.4)] transition-all duration-300"
                                 whileHover={{ scale: 1.05, boxShadow: "0 0 40px rgba(164, 241, 108, 0.6)", filter: "brightness(1.1)" }}
                                 whileTap={{ scale: 0.95 }}
                             >
-                                Start Your Free Trial
+                                {currentUser ? 'Go to Dashboard' : 'Start Your Free Trial'}
                             </motion.button>
                         </div>
                     </motion.div>

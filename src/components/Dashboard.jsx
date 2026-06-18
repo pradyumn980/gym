@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { signOut } from 'firebase/auth';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import Header from './dashboard/Header';
@@ -118,8 +118,13 @@ const exerciseLibrary = [
   { name: 'Jump Rope', caloriesPerSet: 14, imageUrl: battle, duration: 120 }, // Rope ~ Battle rope
   { name: 'Rowing Machine', caloriesPerSet: 12, imageUrl: pull, duration: 180 }, // Using pull
   { name: 'HIIT Sprints', caloriesPerSet: 16, imageUrl: running, duration: 20 },
-  { name: 'Elliptical', caloriesPerSet: 10, imageUrl: running, duration: 300 },
 ];
+
+const sanitizeFirestoreData = (data) => {
+  return JSON.parse(JSON.stringify(data, (key, value) => {
+    return value === undefined ? null : value;
+  }));
+};
 
 const Dashboard = () => {
   const { currentUser } = useAuth();
@@ -144,39 +149,58 @@ const Dashboard = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [exerciseToEdit, setExerciseToEdit] = useState(null);
   const [selectedDayForEdit, setSelectedDayForEdit] = useState(null); // Track which day we are editing
+  const [firebaseError, setFirebaseError] = useState(null);
 
   const [isReminderVisible, setIsReminderVisible] = useState(true);
+
+  const updateUserDoc = useCallback(async (data) => {
+    if (!currentUser) return;
+    await setDoc(doc(db, 'users', currentUser.uid), data, { merge: true });
+  }, [currentUser]);
 
   useEffect(() => {
     if (currentUser) {
       const fetchUserData = async () => {
-        setLoading(true);
-        const docRef = doc(db, 'users', currentUser.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
+        try {
+          setLoading(true);
+          setFirebaseError(null);
+          const docRef = doc(db, 'users', currentUser.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
 
-          // MIGRATION: If old workoutPlan exists but no weeklySchedule, migrate it
-          if (data.weeklySchedule) {
-            setWeeklySchedule(data.weeklySchedule);
-          } else if (data.workoutPlan && data.workoutPlan.exercises.length > 0) {
-            // Migrate old plan to "Mon" or generic day
-            const migrated = {
-              'Mon': { muscle: 'General', exercises: data.workoutPlan.exercises }
-            };
-            setWeeklySchedule(migrated);
-            await updateDoc(docRef, { weeklySchedule: migrated }); // Save migration
+            // MIGRATION: If old workoutPlan exists but no weeklySchedule, migrate it
+            if (data.weeklySchedule) {
+              setWeeklySchedule(data.weeklySchedule);
+            } else if (data.workoutPlan && data.workoutPlan.exercises.length > 0) {
+              // Migrate old plan to "Mon" or generic day
+              const migrated = {
+                'Mon': { muscle: 'General', exercises: data.workoutPlan.exercises }
+              };
+              setWeeklySchedule(migrated);
+              try {
+                await setDoc(docRef, sanitizeFirestoreData({ weeklySchedule: migrated }), { merge: true }); // Save migration
+              } catch (migrateErr) {
+                console.error("Migration save failed:", migrateErr);
+              }
+            } else {
+              setWeeklySchedule({});
+            }
+
+            setHistory(data.history || []);
+            setPendingWorkout(data.pendingWorkout || null);
           } else {
             setWeeklySchedule({});
+            setHistory([]);
           }
-
-          setHistory(data.history || []);
-          setPendingWorkout(data.pendingWorkout || null);
-        } else {
+        } catch (err) {
+          console.error("Error fetching user data:", err);
+          setFirebaseError(err.message || String(err));
           setWeeklySchedule({});
           setHistory([]);
+        } finally {
+          setLoading(false);
         }
-        setLoading(false);
       };
       fetchUserData();
     }
@@ -214,7 +238,7 @@ const Dashboard = () => {
       const dayData = weeklySchedule[day] || { muscle: '', exercises: [] };
       enriched[day] = {
         ...dayData,
-        exercises: dayData.exercises.map(ex => {
+        exercises: (dayData.exercises || []).map(ex => {
           const libraryItem = exerciseLibrary.find(libEx => libEx.name === ex.name);
           return { ...ex, ...libraryItem };
         })
@@ -273,7 +297,7 @@ const Dashboard = () => {
 
       if (data.schedule) {
         setWeeklySchedule(data.schedule);
-        await updateDoc(doc(db, 'users', currentUser.uid), { weeklySchedule: data.schedule });
+        await updateUserDoc(sanitizeFirestoreData({ weeklySchedule: data.schedule }));
         alert(`✅ Generated a ${data.split} based on your goal!`);
       }
     } catch (error) {
@@ -285,7 +309,7 @@ const Dashboard = () => {
   };
 
 
-  const saveWorkout = async (workoutToSave) => {
+  const saveWorkout = useCallback(async (workoutToSave) => {
     const durationInSeconds = Math.round((Date.now() - workoutStartTime) / 1000);
     const workoutName = `Workout (${workoutToSave.name}) - ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 
@@ -305,13 +329,13 @@ const Dashboard = () => {
     };
 
     const updatedHistory = [completedWorkout, ...history];
-    await updateDoc(doc(db, 'users', currentUser.uid), { history: updatedHistory, pendingWorkout: null });
+    await updateUserDoc(sanitizeFirestoreData({ history: updatedHistory, pendingWorkout: null }));
     setHistory(updatedHistory);
     setPendingWorkout(null);
 
     setIsWorkoutActive(false);
     setActiveWorkout(null);
-  };
+  }, [workoutStartTime, history, currentUser, updateUserDoc]);
 
   const handleDeleteExercise = async (day, exerciseId) => {
     if (window.confirm(`Remove exercise from ${day}?`)) {
@@ -319,14 +343,14 @@ const Dashboard = () => {
       const dayData = weeklySchedule[day];
       if (!dayData) return;
 
-      const updatedExercises = dayData.exercises.filter(ex => ex.id !== exerciseId);
+      const updatedExercises = (dayData.exercises || []).filter(ex => ex.id !== exerciseId);
 
       const updatedSchedule = {
         ...weeklySchedule,
         [day]: { ...dayData, exercises: updatedExercises }
       };
 
-      await updateDoc(doc(db, 'users', currentUser.uid), { weeklySchedule: updatedSchedule });
+      await updateUserDoc(sanitizeFirestoreData({ weeklySchedule: updatedSchedule }));
       setWeeklySchedule(updatedSchedule);
     }
   };
@@ -357,7 +381,7 @@ const Dashboard = () => {
       caloriesBurnedSoFar: Math.round(caloriesBurnedSoFar)
     };
 
-    await updateDoc(doc(db, 'users', currentUser.uid), { pendingWorkout: newPendingWorkout });
+    await updateUserDoc(sanitizeFirestoreData({ pendingWorkout: newPendingWorkout }));
     setPendingWorkout(newPendingWorkout);
 
     setIsWorkoutActive(false);
@@ -382,7 +406,7 @@ const Dashboard = () => {
   const handleDiscardWorkout = async () => {
     if (!pendingWorkout) return;
     if (window.confirm("Are you sure you want to discard this unfinished workout? This cannot be undone.")) {
-      await updateDoc(doc(db, 'users', currentUser.uid), { pendingWorkout: null });
+      await updateUserDoc({ pendingWorkout: null });
       setPendingWorkout(null);
     }
   };
@@ -427,7 +451,7 @@ const Dashboard = () => {
       [selectedDayForEdit]: { ...dayData, exercises: updatedExercises }
     };
 
-    await updateDoc(doc(db, 'users', currentUser.uid), { weeklySchedule: updatedSchedule });
+    await updateUserDoc(sanitizeFirestoreData({ weeklySchedule: updatedSchedule }));
     setWeeklySchedule(updatedSchedule);
 
     setIsEditModalOpen(false);
@@ -445,7 +469,7 @@ const Dashboard = () => {
     setWeeklySchedule(updatedSchedule);
 
     // Auto-save target updates (maybe debounce this in real app, but ok for now)
-    await updateDoc(doc(db, 'users', currentUser.uid), { weeklySchedule: updatedSchedule });
+    await updateUserDoc(sanitizeFirestoreData({ weeklySchedule: updatedSchedule }));
   };
 
   useEffect(() => {
@@ -502,7 +526,7 @@ const Dashboard = () => {
       clearInterval(countdown);
     };
 
-  }, [isWorkoutActive, activeWorkout, workoutPhase, currentSet, currentExerciseIndex, workoutStartTime, history, currentUser]);
+  }, [isWorkoutActive, activeWorkout, workoutPhase, currentSet, currentExerciseIndex, workoutStartTime, history, currentUser, saveWorkout]);
 
 
   const handleLogout = async () => { await signOut(auth); };
@@ -513,14 +537,14 @@ const Dashboard = () => {
         ...weeklySchedule,
         [day]: { muscle: '', exercises: [] }
       };
-      await updateDoc(doc(db, 'users', currentUser.uid), { weeklySchedule: updatedSchedule });
+      await updateUserDoc(sanitizeFirestoreData({ weeklySchedule: updatedSchedule }));
       setWeeklySchedule(updatedSchedule);
     }
   };
 
   const handleClearHistory = async () => {
     if (window.confirm("DANGER: Are you sure?")) {
-      await updateDoc(doc(db, 'users', currentUser.uid), { history: [] });
+      await updateUserDoc({ history: [] });
       setHistory([]);
     }
   };
@@ -553,28 +577,28 @@ const Dashboard = () => {
       ...weeklySchedule,
       [day]: {
         ...dayData,
-        exercises: [...dayData.exercises, exerciseWithId]
+        exercises: [...(dayData.exercises || []), exerciseWithId]
       }
     };
 
-    await updateDoc(doc(db, 'users', currentUser.uid), { weeklySchedule: updatedSchedule });
+    await updateUserDoc(sanitizeFirestoreData({ weeklySchedule: updatedSchedule }));
     setWeeklySchedule(updatedSchedule);
     // setIsModalOpen(false) handled by modal
   };
 
   const startWorkout = async (dayData, dayName) => {
-    if (dayData.exercises.length === 0) return;
+    if (!dayData || !dayData.exercises || dayData.exercises.length === 0) return;
 
     if (pendingWorkout) {
       if (!window.confirm("You have an unfinished workout. Starting a new one will discard the old one's progress. Continue?")) {
         return;
       }
-      await updateDoc(doc(db, 'users', currentUser.uid), { pendingWorkout: null });
+      await updateUserDoc({ pendingWorkout: null });
       setPendingWorkout(null);
     }
 
     const planToStart = {
-      name: dayName, // "Mon", "Tue"
+      name: dayName || dayData.name || "Workout", // "Mon", "Tue", or custom
       exercises: dayData.exercises
     };
 
@@ -671,6 +695,19 @@ const Dashboard = () => {
 
       <main className="relative z-10 max-w-7xl mx-auto">
         <Header onLogout={handleLogout} onClearHistory={handleClearHistory} />
+
+        {firebaseError && (
+          <div className="bg-red-500/20 border border-red-500 text-red-200 p-4 rounded-xl mb-6 text-sm">
+            <p className="font-bold flex items-center gap-2">
+              <span className="bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs font-black">!</span>
+              Firebase Error:
+            </p>
+            <p className="mt-1 font-mono text-xs">{firebaseError}</p>
+            <p className="mt-2 text-xs text-red-300/80">
+              Please check your Firestore Database security rules. If you are using default Firebase Test Rules, they automatically expire after 30 days and will block all read and write queries.
+            </p>
+          </div>
+        )}
 
         {isReminderVisible && (
           <WorkoutReminder

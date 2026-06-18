@@ -1,13 +1,15 @@
 // src/components/SignUpForm.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth, db } from '../firebase';
+import { useAuth } from '../context/AuthContext';
 import { doc, setDoc } from "firebase/firestore"; 
 import AuthLayout from './AuthLayout';
 import { HiOutlineMail, HiOutlineLockClosed, HiOutlineUser } from 'react-icons/hi'; 
 
 const SignUpForm = () => {
+    const { currentUser } = useAuth();
     const [formData, setFormData] = useState({
         name: '', // <-- NEW: Added name field
         email: '',
@@ -16,6 +18,12 @@ const SignUpForm = () => {
     });
     const [error, setError] = useState('');
     const navigate = useNavigate();
+
+    useEffect(() => {
+        if (currentUser) {
+            navigate('/dashboard');
+        }
+    }, [currentUser, navigate]);
 
     const handleChange = (e) => {
         const { id, value } = e.target;
