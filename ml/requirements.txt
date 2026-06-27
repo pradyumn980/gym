@@ -4,4 +4,4 @@ pandas
 scikit-learn
 numpy
 python-dotenv
-groq
+google-generativeai

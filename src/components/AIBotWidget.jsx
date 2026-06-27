@@ -1,5 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 
+const ML_API_BASE =
+  window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? "http://localhost:5000"
+    : "https://gym-ybl2.onrender.com";
+
 export default function AIBotWidget({ history = [] }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
@@ -37,7 +42,7 @@ export default function AIBotWidget({ history = [] }) {
     setIsLoading(true);
 
     try {
-      const res = await fetch("https://gym-ybl2.onrender.com/chat", {
+      const res = await fetch(`${ML_API_BASE}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

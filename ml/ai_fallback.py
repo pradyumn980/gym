@@ -1,8 +1,8 @@
 import os
-from groq import Groq
+import google.generativeai as genai
 
-def ai_reply(message, history):
-    api_key = os.getenv("GROQ_API_KEY")
+def ai_reply(message, history, context=None):
+    api_key = os.getenv("GEMINI_API_KEY")
 
     if not api_key:
         return (
@@ -11,26 +11,50 @@ def ai_reply(message, history):
         )
 
     try:
-        client = Groq(api_key=api_key)
+        genai.configure(api_key=api_key)
+        
+        system_instruction = (
+            "You are an AI fitness coach. "
+            "Give safe, beginner-friendly fitness advice. "
+            "No medical advice. Keep answers relatively short and motivating.\n\n"
+        )
+        if context:
+            system_instruction += (
+                f"Context about the user:\n"
+                f"- {context.get('default_recommendation', '')}\n"
+                f"- {context.get('fatigue_status', '')}\n\n"
+                "Use this context only if the user asks about their specific recommended next workout, "
+                "fatigue, or if they need a recommendation. Otherwise, answer "
+                "their gym, fitness, exercise, diet, or recovery query using your general knowledge."
+            )
 
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",  # fast + smart
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are an AI fitness coach. "
-                        "Give safe, beginner-friendly fitness advice. "
-                        "No medical advice. Keep answers short and motivating."
-                    )
-                },
-                {"role": "user", "content": message}
-            ],
-            temperature=0.6,
-            max_tokens=200
+        model = genai.GenerativeModel(
+            model_name="gemini-2.5-flash",
+            system_instruction=system_instruction
         )
 
-        return response.choices[0].message.content.strip()
+        # Convert history from frontend format to Gemini format
+        gemini_history = []
+        for msg in history:
+            # Avoid duplicate user message in history
+            if msg.get("from") == "user" and msg.get("text") == message:
+                continue
+            role = "user" if msg.get("from") == "user" else "model"
+            gemini_history.append({
+                "role": role,
+                "parts": [msg.get("text", "")]
+            })
+
+        chat = model.start_chat(history=gemini_history)
+        response = chat.send_message(
+            message,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.6,
+                max_output_tokens=300
+            )
+        )
+
+        return response.text.strip()
 
     except Exception:
         return (
